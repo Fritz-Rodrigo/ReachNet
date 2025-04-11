@@ -52,7 +52,7 @@ def train_model(data_path_sf, data_path_bup,
             train_loss += loss.item()
 
         train_mse = train_loss / len(train_loader)
-        train_rmse = math.sqrt(train_mse)
+        train_rmse = np.sqrt(train_mse)
 
         # --- Validation ---
         model.eval()

@@ -74,8 +74,3 @@ def train_model(data_path_sf, data_path_bup,
     # Save
     torch.save(model.state_dict(), "trained_ReachNet.pth")
     print("✅ Saved trained_ReachNet.pth")
-
-
-# Example usage (if running as script)
-if __name__ == "__main__":
-    train_model("../g7_v100/sf", "../g7_v100/bup", epochs=10)

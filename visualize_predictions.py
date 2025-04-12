@@ -24,7 +24,7 @@ split_path = "split_indices.json"
 dataset = ScalarFieldToReachDataset(sf_path, bup_path)
 
 # Random Split
-train_size = int(round(0.95*len(dataset),0))
+train_size = int(round(0.8*len(dataset),0))
 val_size = len(dataset) - train_size
 print(f'Training size: {train_size}')
 print(f'Validation size: {val_size}')

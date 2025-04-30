@@ -18,4 +18,4 @@ def geometry_loss(input_field, output_field):
     print(f"[Info] {len(meshes)} valid meshes in batch")
     vols = [compute_volume(mesh) for mesh in meshes]
     vol_loss = -torch.mean(torch.tensor(vols))
-    return laplacian + 0.1 * vol_loss
+    return laplacian + 0.1*vol_loss

@@ -1,7 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 from models.ReachNet import ReachNet
-from data.dataset import ScalarFieldToReachDataset
+from data.data_prep import data_prep
 from torch.utils.data import random_split, DataLoader, Subset
 import numpy as np
 import json
@@ -21,7 +21,7 @@ model_path = "trained_ReachNet.pth"
 split_path = "split_indices.json"
 
 # Load dataset
-dataset = ScalarFieldToReachDataset(sf_path, bup_path)
+dataset = data_prep(sf_path, bup_path)
 
 # Random Split
 train_size = int(round(0.8*len(dataset),0))

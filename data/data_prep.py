@@ -1,0 +1,92 @@
+import torch
+from torch.utils.data import Dataset
+import trimesh
+import numpy as np
+import os
+import math
+
+class data_prep(Dataset):
+    def __init__(self, sf_dir, bup_dir, stl_dir):
+        self.sf_dir = sf_dir
+        self.bup_dir = bup_dir
+        self.stl_dir = stl_dir
+
+        self.file_triples = []
+        for f in os.listdir(sf_dir):
+            if not f.endswith("_sf.txt"):
+                continue
+            base_name = f.replace("_sf.txt", "")
+            bup_filename = f"{base_name}_bup.txt"
+            stl_filename = f"{base_name}_ns.stl"
+            bup_path = os.path.join(bup_dir, bup_filename)
+            stl_path = os.path.join(stl_dir, stl_filename)
+            sf_path = os.path.join(sf_dir, f)
+            if os.path.exists(bup_path) and os.path.exists(stl_path):
+                self.file_triples.append((sf_path, bup_path, stl_path, base_name))
+            else:
+                missing = []
+                if not os.path.exists(bup_path):
+                    missing.append("bup")
+                if not os.path.exists(stl_path):
+                    missing.append("stl")
+                print(f"[Warning] Missing {', '.join(missing)} for {f}, skipping. → Checked: bup='{bup_path}', stl='{stl_path}'")
+
+    def __len__(self):
+        return len(self.file_triples)
+
+    def __getitem__(self, idx):
+        sf_path, bup_path, stl_path, base_name = self.file_triples[idx]
+
+        # Load scalar field
+        sf = np.loadtxt(sf_path)
+        side_len = round(sf.size**(1/3))
+        if side_len**3 != sf.size:
+            raise ValueError(f"Cannot reshape scalar field {sf_path} to cube.")
+        sf = sf.reshape((side_len, side_len, side_len))
+        sf_tensor = torch.tensor(sf, dtype=torch.float32).unsqueeze(0)
+
+        # Load reach
+        reach = np.loadtxt(bup_path)
+        reach_tensor = torch.tensor(reach, dtype=torch.float32)
+
+        # Load mesh and convert to tensor
+        stl_mesh = trimesh.load(stl_path, force='mesh')
+        vertices, faces = self.mesh_to_tensor(stl_mesh)
+
+        # Parse metadata from base name
+        metadata = self.parse_metadata(base_name)
+        mesh = {'vertices': vertices, 'faces': faces}
+        return sf_tensor, reach_tensor, mesh, base_name, metadata
+
+
+    def parse_metadata(self, name):
+        PHASE_MAP = {
+            "pi2": math.pi/2,
+            "pi3": math.pi/3,
+            "pi5": math.pi/5,
+            "pi7": math.pi/7,
+        }
+        try:
+            parts = name.split("_")
+            metadata = {
+                "genus": int(parts[0][1:]),
+                "knot_type": parts[1],
+                "freq_xyz": tuple(map(int, parts[2].split(","))),
+                "phase_xyz": tuple( PHASE_MAP.get(val, float(val)) for val in parts[3].split(",") ),
+                "radius_freq": int(parts[4]),
+                "radius_fn_const": float(parts[5]),
+                "radius_fn_amp": float(parts[6].replace("±", "")),
+                "rmin": float(parts[7][1:]),  # Remove 'r'
+                "rmax": float(parts[8]),
+                "voxels": int(parts[9][1:])  # Remove 'v'
+            }
+        except Exception as e:
+            print(f"[Warning] Failed to parse metadata from {name}: {e}")
+            metadata = {}
+        return metadata
+
+    def mesh_to_tensor(self, mesh):
+        """Convert a Trimesh object to a tensor representation."""
+        vertices = torch.tensor(mesh.vertices, dtype=torch.float32)  # (V, 3) shape
+        faces = torch.tensor(mesh.faces, dtype=torch.int64)  # (F, 3) shape
+        return vertices, faces

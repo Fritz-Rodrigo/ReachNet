@@ -2,10 +2,10 @@ import torch
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
-from data.dataset import ScalarFieldToReachDataset
+from data.data_prep import data_prep
 
 def visualize_batch(data_path_sf, data_path_bup, batch_index=0, batch_size=2, train=True):
-    dataset = ScalarFieldToReachDataset(data_path_sf, data_path_bup)
+    dataset = data_prep(data_path_sf, data_path_bup)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=train)
 
     # Convert to list so we can index batches

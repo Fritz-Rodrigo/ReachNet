@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from models.ReachNet import ReachNet
-from data.dataset import ScalarFieldToReachDataset
+from data.data_prep import data_prep
 import numpy as np
 import os
 
@@ -18,7 +18,7 @@ def train_model(data_path_sf, data_path_bup, epochs=10, batch_size=2, lr=1e-3):
     print(f"Determined output size (number of curve points): {output_size}")
 
     # Dataset & DataLoader
-    dataset = ScalarFieldToReachDataset(data_path_sf, data_path_bup)
+    dataset = data_prep(data_path_sf, data_path_bup)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Create model with the determined output size

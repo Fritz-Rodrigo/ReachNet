@@ -130,9 +130,9 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
               f"Train RMSE: {train_rmse:.3e}  "
               f"Val RMSE: {val_rmse:.3e}")
 
-    # Save model
-    torch.save(model.state_dict(), "trained_ReachNet1.pth")
-    print("💾 Saved trained_ReachNet1.pth ✅")
+    save_name = "trained_ReachNet2.pth"
+    torch.save(model.state_dict(), save_name)
+    print(f"💾 Saved {save_name} ✅")
     
     now = datetime.now()
     print("Ended at:", now)

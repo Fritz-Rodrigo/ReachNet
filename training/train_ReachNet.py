@@ -6,6 +6,7 @@ import json
 import os
 import numpy as np
 from datetime import datetime
+import matplotlib.pyplot as plt
 import argparse
 
 from models.ReachNet import ReachNet
@@ -88,6 +89,9 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
+    train_rmse_list = []
+    val_rmse_list = []
+
     for epoch in range(epochs):
         model.train()
         train_loss = 0.0
@@ -108,6 +112,7 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
 
         train_mse = train_loss / len(train_loader)
         train_rmse = np.sqrt(train_mse)
+        train_rmse_list.append(train_rmse)
 
         # --- Validation ---
         model.eval()
@@ -125,6 +130,7 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
 
         val_mse = val_loss / len(val_loader)
         val_rmse = np.sqrt(val_mse)
+        val_rmse_list.append(val_rmse)
 
         print(f"📈 Epoch {epoch+1}/{epochs}  "
               f"Train RMSE: {train_rmse:.3e}  "
@@ -137,6 +143,17 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
     now = datetime.now()
     print("Ended at:", now)
 
+    # Plot training and validation RMSE
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(epochs), train_rmse_list, label='Train RMSE', color='blue')
+    plt.plot(range(epochs), val_rmse_list, label='Validation RMSE', color='orange')
+    plt.xlabel('Epoch')
+    plt.ylabel('RMSE')
+    plt.title('Training and Validation RMSE')
+    plt.legend()
+    plt.show()
+
+
 
 # ---------- ARGPARSE ----------
 
@@ -145,7 +162,7 @@ if __name__ == "__main__":
     parser.add_argument("--sf_dir", required=True, help="Path to scalar field .txt files")
     parser.add_argument("--bup_dir", required=True, help="Path to blow-up (radius) .txt files")
     parser.add_argument("--stl_dir", required=True, help="Path to STL surface meshes")
-    parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--alpha_geom", type=float, default=1.0, help="Weight for geometric loss (surface area)")

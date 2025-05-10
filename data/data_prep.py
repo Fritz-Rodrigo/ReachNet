@@ -28,7 +28,7 @@ class data_prep(Dataset):
                     missing.append("bup")
                 if not os.path.exists(stl_path):
                     missing.append("stl")
-                print(f"[Warning] Missing {', '.join(missing)} for {f}, skipping. → Checked: bup='{bup_path}', stl='{stl_path}'")
+                print(f"[Warning] Missing {', '.join(missing)} for {f}, skipping.")
 
     def __len__(self):
         return len(self.file_triples)
@@ -72,7 +72,7 @@ class data_prep(Dataset):
         except ValueError:
             return 0.0
 
-    @staticmethod # To call parse_metadata without needing a full dataset object
+    @staticmethod # To call parse_metadata without a full dataset object
     def parse_metadata(filename):
         """
         Parse metadata from structured filename, e.g.:
@@ -99,20 +99,19 @@ class data_prep(Dataset):
 
             return {
                 "genus": genus,
-                "knot_type": knot_type,
+                "knot type": knot_type,
                 "frequencies": freqs,
                 "phases": phases,
-                "sin_freq": sin_freq,
-                "sin_offset": sin_offset,
-                "sin_amp": sin_amp,
-                "rmin": rmin,
-                "rmax": rmax,
-                "voxels": voxels
+                "sinusoidal frequency": sin_freq,
+                "sinusoidal offset": sin_offset,
+                "sinusoidal amplitude": sin_amp,
+                "minimum radius": rmin,
+                "maximum radius": rmax,
+                "number of voxels per axis": voxels
             }
 
         except Exception as e:
-            print(f"[Warning] Failed to parse metadata from {filename}: {e}")
-            return {}
+            raise ValueError(f"Failed to parse '{filename}': {e}")
 
             
     def mesh_to_tensor(self, mesh):

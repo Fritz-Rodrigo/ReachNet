@@ -41,7 +41,7 @@ def custom_collate(batch):
 
 def train_model(data_path_sf, data_path_bup, data_path_stl,
                 epochs=10, batch_size=2, lr=1e-3,
-                val_fraction=0.2, alpha_geom=0.1):
+                val_fraction=0.1, alpha_geom=0.1):
 
     # Determine output size from a sample bup file
     bup_files = sorted(os.listdir(data_path_bup))
@@ -136,23 +136,31 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
               f"Train RMSE: {train_rmse:.3e}  "
               f"Val RMSE: {val_rmse:.3e}")
 
-    save_name = "trained_ReachNet2.pth"
+    save_name = "trained_ReachNet.pth"
     torch.save(model.state_dict(), save_name)
     print(f"💾 Saved {save_name} ✅")
     
     now = datetime.now()
     print("Ended at:", now)
 
+    # Save directory
+    plot_dir = "./"
+    os.makedirs(plot_dir, exist_ok=True)
+    plot_filename = os.path.join(plot_dir, "train_val.png")
+
     # Plot training and validation RMSE
     plt.figure(figsize=(10, 5))
-    plt.plot(range(epochs), train_rmse_list, label='Train RMSE', color='blue')
-    plt.plot(range(epochs), val_rmse_list, label='Validation RMSE', color='orange')
+    plt.plot(range(epochs), train_rmse_list, label='Train RMSE', color='blue', marker='o')
+    plt.plot(range(epochs), val_rmse_list, label='Validation RMSE', color='orange', marker='o')
     plt.xlabel('Epoch')
     plt.ylabel('RMSE')
     plt.title('Training and Validation RMSE')
     plt.legend()
-    plt.show()
+    plt.tight_layout()
+    plt.savefig(plot_filename)
+    plt.close()
 
+    print(f"📈 Saved RMSE plot to '{plot_filename}'")
 
 
 # ---------- ARGPARSE ----------

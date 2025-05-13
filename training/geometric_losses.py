@@ -25,7 +25,7 @@ def area_loss(mesh_paths, pred_radii, gt_radii):
         # Assume we cannot directly rescale; simulate area change:
         # Estimate new area proportional to radius change
         scale_factor = np.mean(pred_radii[i]) / (np.mean(gt_radii[i]) + 1e-8)
-        estimated_area = area_gt * (scale_factor ** 2)  # surface area ~ r²
+        estimated_area = area_gt*(scale_factor**2)  # surface area ~ r²
 
         diff = abs(estimated_area - area_gt)
         total_loss += diff

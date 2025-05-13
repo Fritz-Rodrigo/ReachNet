@@ -24,12 +24,12 @@ def bup_to_scalar_field(pred_radii, metadata, grid_size=90, padding=5):
     max_coord = curve.max(axis=0)
     scale = max(max_coord - min_coord)
     curve = (curve - min_coord) / scale  # now in [0,1]^3
-    curve *= (grid_size - 2 * padding - 1)
+    curve *= (grid_size - 2*padding - 1)
     curve += padding
 
     # Create a KDTree for fast nearest neighbor queries
     tree = cKDTree(curve)
-    grid = np.indices((grid_size, grid_size, grid_size)).reshape(3, -1).T  # (V, 3)
+    grid = np.indices((grid_size, grid_size, grid_size)).reshape(3,-1).T  # (V, 3)
 
     # Query closest curve point for each voxel
     dists, indices = tree.query(grid, k=1)

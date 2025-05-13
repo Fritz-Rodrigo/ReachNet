@@ -7,21 +7,24 @@ import numpy as np
 import json
 import os
 
+# === PATHS ===
+# Save Folder
 predictions_dir = 'Predictions'
 os.makedirs(predictions_dir, exist_ok=True)
 
-# === PATHS ===
 # Scalar Fields
 sf_path = "../g7_v100/sf"
 # Radii
 bup_path = "../g7_v100/bup"
+# STLs
+stl_path = "../g7_v100/ns"
 # Trained Model
-model_path = "trained_ReachNet.pth"
+model_path = "trained_ReachNet_sin3.pth"
 # Split Indices
 split_path = "split_indices.json"
 
 # Load dataset
-dataset = data_prep(sf_path, bup_path)
+dataset = data_prep(sf_path, bup_path, stl_path)
 
 # Random Split
 train_size = int(round(0.8*len(dataset),0))
@@ -46,7 +49,7 @@ val_ds = Subset(dataset, val_indices)
 val_loader = DataLoader(val_ds, batch_size=1, shuffle=False)
 
 # Load model
-sample_sf, sample_bup = val_ds[0]
+sample_sf, sample_bup, *_ = val_ds[0]
 output_size = sample_bup.shape[0]
 model = ReachNet(output_size)
 # model.load_state_dict(torch.load(model_path))
@@ -59,7 +62,7 @@ model.to(device)
 
 # Visualize N samples
 N = int(input(f'How many validation samples to visualize? (Maximum {val_size})\n'))
-for i, (sf, true_bup) in enumerate(val_loader):
+for i, (sf, true_bup, *_) in enumerate(val_loader):
     if i >= N:
         break
 

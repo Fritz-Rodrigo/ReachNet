@@ -1,10 +1,11 @@
 from data_prep import data_prep
 import os
+import glob
 
 # sf_path = "../g7_v100/sf/"
 # bup_path = "../g7_v100/bup/"
 # stl_path = "../g7_v100/ns/"
-sf_path = "C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10"
+sf_path = "C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10/"
 bup_path = sf_path
 stl_path = sf_path
 
@@ -25,11 +26,17 @@ for fname in os.listdir(sf_path):
     if not fname.endswith("_sf.txt"):
         continue
     base_name = fname.replace("_sf.txt", "")
+    pattern = os.path.join(stl_path, base_name + "_a*.stl")  # Match STL with area tag
+    matches = glob.glob(pattern)
+    if not matches:
+        print(f"[Warning] Missing stl for {fname}, skipping.")
+        continue
+    stl_name = matches[0]  # Use first matching STL
     try:
-        metadata = data.parse_metadata(base_name)
-        successes.append((base_name, metadata))
+        metadata = data.parse_metadata_reach_based(stl_name)
+        successes.append((stl_name, metadata))
     except Exception as e:
-        failures.append((base_name, str(e)))
+        failures.append((stl_name, str(e)))
 
 print(f"\n✅ Successfully parsed {len(successes)} files.")
 print(f"❌ Failed to parse {len(failures)} files.")
@@ -41,15 +48,18 @@ if failures:
         print(f"  {f} → {msg}")
 
     # Write to log file
-    with open("./data/parsing_failures.log", "w") as log_file:
+    with open("./data/parsing_fail.log", "w") as log_file:
         log_file.write("Failed to parse the following filenames:\n")
         for f, msg in failures:
             log_file.write(f"{f} -> {msg}\n")
 
-    print("\n📝 Failures saved to './data/parsing_failures.log'.")
+    print("\n📝 Failures saved to './data/parsing_fail.log'.")
 
 # Inspect one of the succesfully parsed metadata dictionaries
 if successes:
+    with open("./data/log_success.txt", "w") as f:
+        f.writelines(f"{s}\n" for s in successes)
+    
     print("\nExample of parsed metadata:")
-    for key, val in successes[0][1].items():
+    for key, val in successes[33][1].items():
         print(f"  {key}: {val}")

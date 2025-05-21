@@ -3,8 +3,10 @@ from torch.utils.data import Dataset
 import trimesh
 import numpy as np
 import os
+import glob
 
 class data_prep(Dataset):
+
     def __init__(self, sf_dir, bup_dir, stl_dir):
         self.sf_dir = sf_dir
         self.bup_dir = bup_dir
@@ -16,10 +18,16 @@ class data_prep(Dataset):
                 continue
             base_name = f.replace("_sf.txt", "")
             bup_filename = f"{base_name}_bup.txt"
-            stl_filename = f"{base_name}_ns.stl"
-            bup_path = os.path.join(bup_dir, bup_filename)
-            stl_path = os.path.join(stl_dir, stl_filename)
             sf_path = os.path.join(sf_dir, f)
+            bup_path = os.path.join(bup_dir, bup_filename)
+            pattern = os.path.join(stl_dir, base_name + "_a*.stl")  # Match STL with area tag
+            matches = glob.glob(pattern)
+            if not matches:
+                print(f"[Warning] Missing stl for {f}, skipping.")
+                continue
+            stl_path = matches[0]  # Use first matching STL
+            # stl_filename = f"{base_name}_ns.stl"
+            # stl_path = os.path.join(stl_dir, stl_filename)
             if os.path.exists(bup_path) and os.path.exists(stl_path):
                 self.file_triples.append((sf_path, bup_path, stl_path, base_name))
             else:
@@ -57,6 +65,7 @@ class data_prep(Dataset):
         mesh = {'vertices': vertices, 'faces': faces}
         return sf_tensor, reach_tensor, mesh, base_name, metadata
 
+
     @staticmethod # To call parse_phase in the static method for parse_metadata
     def parse_phase(val):
         if val.startswith("pi"):
@@ -72,6 +81,8 @@ class data_prep(Dataset):
         except ValueError:
             return 0.0
 
+
+    # Parse data for 'sinusoidal' method
     @staticmethod # To call parse_metadata without a full dataset object
     def parse_metadata(filename):
         """
@@ -107,11 +118,82 @@ class data_prep(Dataset):
                 "sinusoidal amplitude": sin_amp,
                 "minimum radius": rmin,
                 "maximum radius": rmax,
-                "number of voxels per axis": voxels
+                "voxels per axis": voxels
             }
 
         except Exception as e:
             raise ValueError(f"Failed to parse '{filename}': {e}")
+
+
+    # Parse data for 'minimal', 'manual', 'automatic', and 'voronoi' methods
+    @staticmethod # To call parse_metadata without a full dataset object
+    def parse_metadata_reach_based(filename):
+        """
+        Parse metadata from filenames generated with the 'manual' or 'automatic' reach-based methods.
+        Example filenames:
+            g7_lissajous_1,7,9,0,pi2,0_manual_r0.05_v40_sf.txt
+            g7_lissajous_2,3,5,0,0,pi2_automatic_its30_r0.015_0.298_v173_sf.txt
+        """
+        name = os.path.basename(filename)
+        # Strip extensions and suffixes
+        for suffix in ["_ns.stl", ".stl", "_sf.txt", "_bup.txt"]:
+            if name.endswith(suffix):
+                # name = name.replace(suffix, "")
+                name = name[:-len(suffix)]
+                break
+        parts = name.split("_")
+        freq_phase = parts[2].split(",") # Split the 6 comma-separated parameters into freqs and phases
+
+        # Common fields
+        metadata = {
+            "genus": int(parts[0][1:]),  # remove 'g'
+            "knot type": parts[1],
+            "frequencies": tuple(map(int, freq_phase[:3])),
+            "phases": tuple(data_prep.parse_phase(p) for p in freq_phase[3:6]),
+            "method": parts[3]
+        }
+
+        method = metadata["method"]
+
+        if method == "minimal" or method == "manual":
+            metadata["radius"] = float(parts[4][1:])  # e.g., r0.05
+            metadata["voxels"] = int(parts[5][1:])    # e.g., v40 → 40
+
+        elif method == "automatic":
+            metadata["iterations"] = int(parts[4][3:])   # e.g., its30 → 30
+            # Check if next part starts with 'pts'
+            if parts[5].startswith("pts"):
+                metadata["points"] = int(parts[5][3:])       # e.g., pts470 → 470
+                metadata["min radius"] = float(parts[6][1:]) # remove leading 'r'
+                metadata["max radius"] = float(parts[7])
+                metadata["voxels"] = int(parts[8][1:])   # remove leading 'v'
+            else:
+                # e.g., r0.015_0.298 → min and max radius
+                metadata["min radius"] = float(parts[5][1:]) # remove leading 'r'
+                metadata["max radius"] = float(parts[6])
+                metadata["voxels"] = int(parts[7][1:])       # remove leading 'v'
+        
+        elif method == "voronoi":
+            metadata["points"] = int(parts[4][3:])       # e.g., pts100 → 100
+            metadata["offset %"] = float(parts[5][3:])   # e.g., off1.5 → 1.5
+            # e.g., r0.015_0.298 → min and max radius
+            metadata["min radius"] = float(parts[6][1:]) # remove leading 'r'
+            metadata["max radius"] = float(parts[7])
+            metadata["voxels"] = int(parts[8][1:])       # remove leading 'v'
+
+        else:
+            raise ValueError(f"Unknown reach-based method in filename: {metadata['method']}")
+        
+        # Parse area if present (e.g., a21.77)
+        for part in parts:
+            if part.startswith("a"):
+                try:
+                    metadata["surface area"] = float(part[1:]) # remove leading 'a'
+                    break
+                except ValueError:
+                    continue  # Not a valid float after 'a', skip
+
+        return metadata
 
             
     def mesh_to_tensor(self, mesh):

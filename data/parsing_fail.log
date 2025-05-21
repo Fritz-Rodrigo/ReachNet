@@ -1,0 +1,27 @@
+Failed to parse the following filenames:
+g13_lissajous_2,3,7,0,0,pi5_automatic_r0.009_0.163_v246_ns.stl -> could not convert string to float: 'v246'
+g7_lissajous_2,3,5,0,0,pi2_02_3.0_±1.0_r0.08_0.16_v50.stl -> Unknown reach-based method in filename: 02
+g7_lissajous_2,3,5,0,0,pi2_02_4.0_±1.0_r0.12_0.2_v50.stl -> Unknown reach-based method in filename: 02
+g7_lissajous_2,3,5,0,0,pi2_04_3.0_±1.0_r0.08_0.16_v50.stl -> Unknown reach-based method in filename: 04
+g7_lissajous_2,3,5,0,0,pi2_06_3.0_±1.0_r0.08_0.16_v50.stl -> Unknown reach-based method in filename: 06
+g7_lissajous_2,3,5,0,0,pi2_06_4.0_±1.0_r0.12_0.2_v50.stl -> Unknown reach-based method in filename: 06
+g7_lissajous_2,3,5,0,0,pi2_08_3.0_±1.0_r0.08_0.16_v50.stl -> Unknown reach-based method in filename: 08
+g7_lissajous_2,3,5,0,0,pi2_10_2.0_±0.7_r0.065_0.135_v40.stl -> Unknown reach-based method in filename: 10
+g7_lissajous_2,3,5,0,0,pi2_10_2.0_±0.7_r0.065_0.135_v40_ns.stl -> Unknown reach-based method in filename: 10
+g7_lissajous_2,3,5,0,0,pi2_10_2.0_±0.7_r0.2_0.321_v40.stl -> Unknown reach-based method in filename: 10
+g7_lissajous_2,3,5,0,0,pi2_10_2.0_±0.7_r0.2_0.321_v40_ns.stl -> Unknown reach-based method in filename: 10
+g7_lissajous_2,3,5,0,0,pi2_10_3.0_±1.0_r0.08_0.16_v50.stl -> Unknown reach-based method in filename: 10
+g7_lissajous_2,3,5,0,0,pi2_10_4.0_±1.0_r0.12_0.2_v50.stl -> Unknown reach-based method in filename: 10
+g7_lissajous_2,3,5,0,0,pi2_12_3.5_±1.5_r0.08_0.2_v50.stl -> Unknown reach-based method in filename: 12
+g7_lissajous_2,3,5,0,0,pi2_12_3.5_±1.5_r0.08_0.2_v50_ns.stl -> Unknown reach-based method in filename: 12
+g7_lissajous_2,3,5,0,0,pi2_automatic_r0.015_0.12_v157.stl -> could not convert string to float: 'v157'
+g7_lissajous_2,3,5,0,0,pi2_automatic_r0.015_0.12_v157_ns.stl -> could not convert string to float: 'v157'
+g7_lissajous_2,3,5,0,0,pi2_automatic_r0.015_0.267_v173.stl -> could not convert string to float: 'v173'
+g7_lissajous_2,3,5,0,0,pi2_automatic_r0.015_0.267_v173_ns.stl -> could not convert string to float: 'v173'
+g7_lissajous_3,4,5,0,0,pi2_automatic_r0.013_0.157_v193.stl -> could not convert string to float: 'v193'
+g7_lissajous_3,4,5,0,0,pi2_automatic_r0.013_0.157_v193_ns.stl -> could not convert string to float: 'v193'
+g7_lissajous_3,5,8,0,pi2,0_automatic_r0.016_0.169_v163.stl -> could not convert string to float: 'v163'
+g7_lissajous_3,5,8,0,pi2,0_automatic_r0.016_0.169_v163_ns.stl -> could not convert string to float: 'v163'
+g8_lissajous_2,3,5,0,0,pi2_04_4.0_±1.0_r0.12_0.2_v50.stl -> Unknown reach-based method in filename: 04
+g8_lissajous_2,3,5,0,0,pi2_08_4.0_±1.0_r0.12_0.2_v50.stl -> Unknown reach-based method in filename: 08
+g8_lissajous_3,5,8,0,pi2,0_voronoi_pts175_r0.039_0.231_v92_a36.49_ns.stl -> could not convert string to float: 'v92'

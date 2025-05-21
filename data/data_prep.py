@@ -135,6 +135,9 @@ class data_prep(Dataset):
             g7_lissajous_2,3,5,0,0,pi2_automatic_its30_r0.015_0.298_v173_sf.txt
         """
         name = os.path.basename(filename)
+        if name.endswith(".stl"):
+            smoothed = not name.endswith("_ns.stl")  # Smoothed STL if it does NOT end in _ns.stl
+
         # Strip extensions and suffixes
         for suffix in ["_ns.stl", ".stl", "_sf.txt", "_bup.txt"]:
             if name.endswith(suffix):
@@ -150,7 +153,7 @@ class data_prep(Dataset):
             "knot type": parts[1],
             "frequencies": tuple(map(int, freq_phase[:3])),
             "phases": tuple(data_prep.parse_phase(p) for p in freq_phase[3:6]),
-            "method": parts[3]
+            "method": parts[3],
         }
 
         method = metadata["method"]
@@ -192,6 +195,9 @@ class data_prep(Dataset):
                     break
                 except ValueError:
                     continue  # Not a valid float after 'a', skip
+        
+        # Finally add 'smoothed: True/False'
+        metadata["smoothed"] = smoothed
 
         return metadata
 

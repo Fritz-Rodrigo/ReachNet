@@ -26,7 +26,7 @@ for fname in os.listdir(sf_path):
     if not fname.endswith("_sf.txt"):
         continue
     base_name = fname.replace("_sf.txt", "")
-    pattern = os.path.join(stl_path, base_name + "_a*.stl")  # Match STL with area tag
+    pattern = os.path.join(stl_path, base_name + "_a*_ns.stl")  # Match STL with area tag
     matches = glob.glob(pattern)
     if not matches:
         print(f"[Warning] Missing stl for {fname}, skipping.")

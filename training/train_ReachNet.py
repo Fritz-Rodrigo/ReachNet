@@ -30,16 +30,32 @@ def load_split_indices():
 
 def custom_collate(batch):
     scalar_fields, bups, meshes, filenames, metadata = zip(*batch)
-    return (
-        torch.stack(scalar_fields),
-        torch.stack(bups),
-        list(meshes),         # keep STL mesh tensors as a list
-        list(filenames),      # filenames as list of strings
-        list(metadata)
-    )
+
+    # To use both smoothed and non-smoothed meshes
+    if isinstance(meshes[0], dict):
+        sm_meshes = [m.get("smoothed") for m in meshes]
+        ns_meshes = [m.get("non_smoothed") for m in meshes]
+        return (
+            torch.stack(scalar_fields),
+            torch.stack(bups),
+            {"smoothed": sm_meshes, "non_smoothed": ns_meshes},
+            list(filenames),
+            list(metadata)
+        )
+    
+    # To use just one mesh type
+    else:
+        return (
+            torch.stack(scalar_fields),
+            torch.stack(bups),
+            list(meshes),      # list of one type of mesh
+            list(filenames),
+            list(metadata)
+        )
 
 
-def train_model(data_path_sf, data_path_bup, data_path_stl,
+
+def train_model(data_path_sf, data_path_bup, data_path_sm_stl, data_path_ns_stl, mesh_type="both",
                 epochs=10, batch_size=2, lr=1e-3,
                 val_fraction=0.1, alpha_geom=0.1):
 
@@ -57,7 +73,8 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
     print(f"\nOutput size (curve points): {output_size}")
 
     # Load dataset
-    full_dataset = data_prep(data_path_sf, data_path_bup, data_path_stl)
+    full_dataset = data_prep(data_path_sf, data_path_bup,
+                             sm_stl_dir=data_path_sm_stl if mesh_type in ("sm", "both") else None,ns_stl_dir=data_path_ns_stl if mesh_type in ("ns", "both") else None)
     total_samples = len(full_dataset)
     val_size = int(total_samples * val_fraction)
     train_size = total_samples - val_size
@@ -93,16 +110,31 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
     val_rmse_list = []
 
     for epoch in range(epochs):
+
+        # --- Training ---
         model.train()
         train_loss = 0.0
 
+        # fname and metadata kept for future logging/debugging:
+        # Log specific examples by filename (e.g., for debugging)
+        # Analyze patterns in training based on metadata (e.g., does genus affect loss?)
+        # Save intermediate predictions with identifiable names
         for sf, bup, mesh, fname, metadata in train_loader:
             sf, bup = sf.to(device).float(), bup.to(device).float()
             optimizer.zero_grad()
             preds = model(sf)
 
             mse_loss = criterion(preds, bup)
-            geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
+            # This was before separating sm/ns meshes:
+            # geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
+            if mesh_type == "both":
+                sm_meshes = mesh["smoothed"]
+                ns_meshes = mesh["non_smoothed"]
+                geom_loss = area_loss(sm_meshes, preds.cpu().detach().numpy(), bup.cpu().numpy()) + \
+                            area_loss(ns_meshes, preds.cpu().detach().numpy(), bup.cpu().numpy())
+                geom_loss /= 2
+            else:
+                geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
             total_loss = mse_loss + alpha_geom*geom_loss
 
             total_loss.backward()
@@ -114,16 +146,28 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
         train_rmse = np.sqrt(train_mse)
         train_rmse_list.append(train_rmse)
 
+
         # --- Validation ---
         model.eval()
         val_loss = 0.0
+
         with torch.no_grad():
             for sf, bup, mesh, *_ in val_loader:
                 sf, bup = sf.to(device).float(), bup.to(device).float()
                 preds = model(sf)
 
                 mse_loss = criterion(preds, bup)
-                geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
+                # This was before separating sm/ns meshes:
+                # geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
+                if mesh_type == "both":
+                    sm_meshes = mesh["smoothed"]
+                    ns_meshes = mesh["non_smoothed"]
+                    geom_loss = area_loss(sm_meshes, preds.cpu().detach().numpy(), bup.cpu().numpy()) + \
+                                area_loss(ns_meshes, preds.cpu().detach().numpy(), bup.cpu().numpy())
+                    geom_loss /= 2
+                else:
+                    geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
+
                 total_loss = mse_loss + alpha_geom * geom_loss
 
                 val_loss += total_loss.item()
@@ -168,8 +212,11 @@ def train_model(data_path_sf, data_path_bup, data_path_stl,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train ReachNet with geometric losses")
     parser.add_argument("--sf_dir", required=True, help="Path to scalar field .txt files")
-    parser.add_argument("--bup_dir", required=True, help="Path to blow-up (radius) .txt files")
-    parser.add_argument("--stl_dir", required=True, help="Path to STL surface meshes")
+    parser.add_argument("--bup_dir", required=True, help="Path to blow-up radii .txt files")
+    parser.add_argument("--sm_stl_dir", required=True, help="Path to smoothed STL surface meshes")
+    parser.add_argument("--ns_stl_dir", required=True, help="Path to non-smoothed STL surface meshes")
+    parser.add_argument("--mesh_type", type=str, default="both", choices=["sm", "ns", "both"],
+                        help="Use smoothed/non-smoothed meshes or both, for training loss")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
@@ -179,7 +226,9 @@ if __name__ == "__main__":
     train_model(
         data_path_sf=args.sf_dir,
         data_path_bup=args.bup_dir,
-        data_path_stl=args.stl_dir,
+        data_path_sm_stl=args.sm_stl_dir,
+        data_path_ns_stl=args.ns_stl_dir,
+        mesh_type=args.mesh_type,
         epochs=args.epochs,
         batch_size=args.batch_size,
         lr=args.lr,

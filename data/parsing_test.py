@@ -5,7 +5,10 @@ import glob
 # sf_path = "../g7_v100/sf/"
 # bup_path = "../g7_v100/bup/"
 # stl_path = "../g7_v100/ns/"
+# WSL:
 sf_path = "C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10/"
+# Linux:
+# sf_path = "../g7/"
 bup_path = sf_path
 stl_path = sf_path
 

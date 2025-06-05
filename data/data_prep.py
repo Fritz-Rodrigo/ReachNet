@@ -7,44 +7,44 @@ import glob
 
 class data_prep(Dataset):
 
-    def __init__(self, sf_dir, bup_dir, stl_dir):
-        self.sf_dir = sf_dir
-        self.bup_dir = bup_dir
-        self.stl_dir = stl_dir
+    def __init__(self, sf_dir, bup_dir, sm_stl_dir, ns_stl_dir):
+        self.sf_dir = sf_dir          # Scalar Fields
+        self.bup_dir = bup_dir        # Blow-up radii
+        self.sm_stl_dir = sm_stl_dir  # Smoothed STL mesh
+        self.ns_stl_dir = ns_stl_dir  # Non-smoothed STL mesh
 
-        self.file_triples = []
+        self.files = []
         for f in os.listdir(sf_dir):
             if not f.endswith("_sf.txt"):
                 continue
             base_name = f.replace("_sf.txt", "")
             bup_filename = f"{base_name}_bup.txt"
+            ns_stl_filename = f"{base_name}_ns.stl"
+            sm_stl_filename = f"{base_name}.stl"
             sf_path = os.path.join(sf_dir, f)
             bup_path = os.path.join(bup_dir, bup_filename)
-            pattern = os.path.join(stl_dir, base_name + "_a*.stl")  # Match STL with area tag
-            matches = glob.glob(pattern)
-            if not matches:
-                print(f"[Warning] Missing stl for {f}, skipping.")
-                continue
-            stl_path = matches[0]  # Use first matching STL
-            # stl_filename = f"{base_name}_ns.stl"
-            # stl_path = os.path.join(stl_dir, stl_filename)
-            if os.path.exists(bup_path) and os.path.exists(stl_path):
-                self.file_triples.append((sf_path, bup_path, stl_path, base_name))
+            sm_stl_path = os.path.join(sm_stl_dir, sm_stl_filename)
+            ns_stl_path = os.path.join(ns_stl_dir, ns_stl_filename)
+
+            if os.path.exists(bup_path) and os.path.exists(sm_stl_path) and os.path.exists(ns_stl_path):
+                self.files.append((sf_path, bup_path, sm_stl_path, ns_stl_path, base_name))
             else:
                 missing = []
                 if not os.path.exists(bup_path):
                     missing.append("bup")
-                if not os.path.exists(stl_path):
-                    missing.append("stl")
+                if not os.path.exists(sm_stl_path):
+                    missing.append("sm_stl")
+                if not os.path.exists(ns_stl_path):
+                    missing.append("ns_stl")
                 print(f"[Warning] Missing {', '.join(missing)} for {f}, skipping.")
 
     def __len__(self):
-        return len(self.file_triples)
+        return len(self.files)
 
     def __getitem__(self, idx):
-        sf_path, bup_path, stl_path, base_name = self.file_triples[idx]
+        sf_path, bup_path, sm_stl_path, ns_stl_path, base_name = self.files[idx]
 
-        # Load scalar field
+        # Load scalar field and convert to tensor
         sf = np.loadtxt(sf_path)
         side_len = round(sf.size**(1/3))
         if side_len**3 != sf.size:
@@ -52,18 +52,24 @@ class data_prep(Dataset):
         sf = sf.reshape((side_len, side_len, side_len))
         sf_tensor = torch.tensor(sf, dtype=torch.float32).unsqueeze(0)
 
-        # Load reach
-        reach = np.loadtxt(bup_path)
-        reach_tensor = torch.tensor(reach, dtype=torch.float32)
+        # Load blow-up radii and convert to tensor
+        radii = np.loadtxt(bup_path)
+        radii_tensor = torch.tensor(radii, dtype=torch.float32)
 
-        # Load mesh and convert to tensor
-        stl_mesh = trimesh.load(stl_path, force='mesh')
+        # Load smoothed & non-smoothed STL meshes and convert them to tensors
+        sm_mesh = trimesh.load(sm_stl_path, force='mesh')
+        ns_mesh = trimesh.load(ns_stl_path, force='mesh')
+        stl_mesh = {"smoothed": sm_mesh, "non_smoothed": ns_mesh}
+        
         vertices, faces = self.mesh_to_tensor(stl_mesh)
 
         # Parse metadata from base name
         metadata = self.parse_metadata(base_name)
-        mesh = {'vertices': vertices, 'faces': faces}
-        return sf_tensor, reach_tensor, mesh, base_name, metadata
+
+        # Package mesh as dictionary
+        mesh = {'vertices': vertices, 'faces': faces, 'smoothed': metadata["smoothed"]}
+        
+        return sf_tensor, radii_tensor, mesh, base_name, metadata
 
 
     @staticmethod # To call parse_phase in the static method for parse_metadata

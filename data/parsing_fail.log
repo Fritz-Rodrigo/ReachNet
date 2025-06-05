@@ -1,5 +1,3 @@
 Failed to parse the following filenames:
-C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10\g2_torus_0,0,0,0,0,0_manual_pi3_r0.3_v42_a16.09_ns.stl -> could not convert string to float: 'i3'
-C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10\g4_torus_0,0,0,0,0,0_manual_pi3_r0.1_v42_a6.94_ns.stl -> could not convert string to float: 'i3'
 C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10\g4_torus_0,0,0,0,0,0_manual_pi4_r0.125_v42_a8.51_ns.stl -> could not convert string to float: 'i4'
 C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10\g4_torus_0,0,0,0,0,0_manual_pi5_r0.125_v42_a8.9_ns.stl -> could not convert string to float: 'i5'

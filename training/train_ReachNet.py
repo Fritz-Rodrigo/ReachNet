@@ -13,6 +13,9 @@ from models.ReachNet import ReachNet
 from data.data_prep import data_prep
 from training.geometric_losses import area_loss
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 SPLIT_INDICES_FILE = "split_indices.json"
 
 def save_split_indices(train_indices, val_indices):
@@ -55,26 +58,40 @@ def custom_collate(batch):
 
 
 
-def train_model(data_path_sf, data_path_bup, data_path_sm_stl, data_path_ns_stl, mesh_type="both",
-                epochs=10, batch_size=2, lr=1e-3,
-                val_fraction=0.1, alpha_geom=0.1):
+def train_model(data_path_sf, data_path_bup, data_path_sm_stl, data_path_ns_stl, mesh_type="ns",
+                val_fraction=0.2, epochs=10, batch_size=2, lr=1e-3, alpha_geom=0.1):
 
     # Determine output size from a sample bup file
-    bup_files = sorted(os.listdir(data_path_bup))
+    # Filter for valid bup files only
+    bup_files = sorted([
+        f for f in os.listdir(data_path_bup)
+        if f.endswith('_bup.txt')
+    ])
     if not bup_files:
-        raise ValueError("No bup files found in the folder.")
-    sample_bup = np.loadtxt(os.path.join(data_path_bup, bup_files[0]))
+        raise ValueError(f"No '_bup.txt' files found in {data_path_bup}.")
+    # Try reading the first valid bup file
+    for f in bup_files:
+        bup_path = os.path.join(data_path_bup, f)
+        try:
+            sample_bup = np.loadtxt(bup_path)
+            break  # Success! No need to check more files.
+        except Exception as e:
+            print(f"Failed to read {f}: {e}")
+    else:
+        raise ValueError("All '_bup.txt' files failed to load. Check encoding or file content.")
     output_size = sample_bup.shape[0]
     
     now = datetime.now()
     print("Started at:", now)
-    print("\nReachNet will be trained on scalar fields and meshes to generate a new blow-up (bup) file.")
-    print("Each prediction corresponds to radii approximating the reach of a singular knot surface.")
+    print("\nReachNet is trained with radii profiles & scalar fields to generate a new radii profile (blow-up file).")
+    print("Each prediction corresponds to radii approximating the reach of the surfaces.")
     print(f"\nOutput size (curve points): {output_size}")
 
     # Load dataset
     full_dataset = data_prep(data_path_sf, data_path_bup,
-                             sm_stl_dir=data_path_sm_stl if mesh_type in ("sm", "both") else None,ns_stl_dir=data_path_ns_stl if mesh_type in ("ns", "both") else None)
+                             sm_stl_dir=data_path_sm_stl if mesh_type in ("sm", "both") else None, 
+                             ns_stl_dir=data_path_ns_stl if mesh_type in ("ns", "both") else None,
+                             mesh_type=mesh_type)
     total_samples = len(full_dataset)
     val_size = int(total_samples * val_fraction)
     train_size = total_samples - val_size
@@ -217,6 +234,7 @@ if __name__ == "__main__":
     parser.add_argument("--ns_stl_dir", required=True, help="Path to non-smoothed STL surface meshes")
     parser.add_argument("--mesh_type", type=str, default="both", choices=["sm", "ns", "both"],
                         help="Use smoothed/non-smoothed meshes or both, for training loss")
+    parser.add_argument("--val_fraction", type=float, default=0.2, help="Validation Fraction")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
@@ -229,6 +247,7 @@ if __name__ == "__main__":
         data_path_sm_stl=args.sm_stl_dir,
         data_path_ns_stl=args.ns_stl_dir,
         mesh_type=args.mesh_type,
+        val_fraction=args.val_fraction,
         epochs=args.epochs,
         batch_size=args.batch_size,
         lr=args.lr,

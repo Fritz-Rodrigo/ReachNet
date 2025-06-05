@@ -2,16 +2,26 @@ import torch
 from torch.utils.data import Dataset
 import trimesh
 import numpy as np
+import re
 import os
 import glob
 
 class data_prep(Dataset):
 
-    def __init__(self, sf_dir, bup_dir, sm_stl_dir, ns_stl_dir):
-        self.sf_dir = sf_dir          # Scalar Fields
-        self.bup_dir = bup_dir        # Blow-up radii
-        self.sm_stl_dir = sm_stl_dir  # Smoothed STL mesh
-        self.ns_stl_dir = ns_stl_dir  # Non-smoothed STL mesh
+    def __init__(self, sf_dir, bup_dir, sm_stl_dir=None, ns_stl_dir=None, mesh_type="sm"):
+        self.sf_dir = sf_dir
+        self.bup_dir = bup_dir
+        self.sm_stl_dir = sm_stl_dir
+        self.ns_stl_dir = ns_stl_dir
+        self.mesh_type = mesh_type
+
+        if mesh_type not in ("sm", "ns", "both"):
+            raise ValueError(f"Invalid mesh_type: {mesh_type}. Must be 'sm', 'ns', or 'both'.")
+
+        if mesh_type in ("sm", "both") and not sm_stl_dir:
+            raise ValueError("mesh_type is 'sm' or 'both' but sm_stl_dir is None.")
+        if mesh_type in ("ns", "both") and not ns_stl_dir:
+            raise ValueError("mesh_type is 'ns' or 'both' but ns_stl_dir is None.")
 
         self.files = []
         for f in os.listdir(sf_dir):
@@ -19,27 +29,56 @@ class data_prep(Dataset):
                 continue
             base_name = f.replace("_sf.txt", "")
             bup_filename = f"{base_name}_bup.txt"
-            ns_stl_filename = f"{base_name}_ns.stl"
-            sm_stl_filename = f"{base_name}.stl"
+
+            sm_match = []
+            ns_match = []
+            if sm_stl_dir:
+                sm_match = glob.glob(os.path.join(sm_stl_dir, f"{base_name}_a*_sm.stl"))
+            if ns_stl_dir:
+                ns_match = glob.glob(os.path.join(ns_stl_dir, f"{base_name}_a*_ns.stl"))
+
+            # Determine if appropriate STL files exist
+            if mesh_type == "sm" and not sm_match:
+                continue
+            if mesh_type == "ns" and not ns_match:
+                continue
+            if mesh_type == "both" and (not sm_match or not ns_match):
+                continue
+
+            # Grab the first match for area extraction
+            area_match = sm_match or ns_match
+            if not area_match:
+                print(f"[WARNING] Could not find STL file for {base_name}")
+                continue
+
+            area = re.search(r"_a([0-9.]+)", area_match[0])
+            area_str = f"_a{area.group(1)}" if area else ""
+
+            # Construct full file paths
             sf_path = os.path.join(sf_dir, f)
             bup_path = os.path.join(bup_dir, bup_filename)
-            sm_stl_path = os.path.join(sm_stl_dir, sm_stl_filename)
-            ns_stl_path = os.path.join(ns_stl_dir, ns_stl_filename)
+            sm_stl_path = os.path.join(sm_stl_dir, f"{base_name}{area_str}_sm.stl") if sm_stl_dir else None
+            ns_stl_path = os.path.join(ns_stl_dir, f"{base_name}{area_str}_ns.stl") if ns_stl_dir else None
 
-            if os.path.exists(bup_path) and os.path.exists(sm_stl_path) and os.path.exists(ns_stl_path):
-                self.files.append((sf_path, bup_path, sm_stl_path, ns_stl_path, base_name))
-            else:
-                missing = []
-                if not os.path.exists(bup_path):
-                    missing.append("bup")
-                if not os.path.exists(sm_stl_path):
-                    missing.append("sm_stl")
-                if not os.path.exists(ns_stl_path):
-                    missing.append("ns_stl")
+            # Conditional existence checks
+            missing = []
+            if not os.path.exists(bup_path):
+                missing.append("bup")
+            if mesh_type in ("sm", "both") and (not sm_stl_path or not os.path.exists(sm_stl_path)):
+                missing.append("sm_stl")
+            if mesh_type in ("ns", "both") and (not ns_stl_path or not os.path.exists(ns_stl_path)):
+                missing.append("ns_stl")
+
+            if missing:
                 print(f"[Warning] Missing {', '.join(missing)} for {f}, skipping.")
+                continue
+
+            self.files.append((sf_path, bup_path, sm_stl_path, ns_stl_path, base_name))
+
 
     def __len__(self):
         return len(self.files)
+
 
     def __getitem__(self, idx):
         sf_path, bup_path, sm_stl_path, ns_stl_path, base_name = self.files[idx]
@@ -68,7 +107,7 @@ class data_prep(Dataset):
 
         # Package mesh as dictionary
         mesh = {'vertices': vertices, 'faces': faces, 'smoothed': metadata["smoothed"]}
-        
+
         return sf_tensor, radii_tensor, mesh, base_name, metadata
 
 
@@ -145,7 +184,7 @@ class data_prep(Dataset):
             smoothed = not name.endswith("_ns.stl")  # Smoothed STL if it does NOT end in _ns.stl
 
         # Strip extensions and suffixes
-        for suffix in ["_ns.stl", ".stl", "_sf.txt", "_bup.txt"]:
+        for suffix in ["_ns.stl", "_sm.stl", "_sf.txt", "_bup.txt"]:
             if name.endswith(suffix):
                 # name = name.replace(suffix, "")
                 name = name[:-len(suffix)]

@@ -64,5 +64,6 @@ if successes:
         f.writelines(f"{s}\n" for s in successes)
     
     print("\nExample of parsed metadata:")
-    for key, val in successes[33][1].items():
+    print('File:', successes[0][0])
+    for key, val in successes[0][1].items():
         print(f"  {key}: {val}")

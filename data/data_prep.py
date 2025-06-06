@@ -8,20 +8,10 @@ import glob
 
 class data_prep(Dataset):
 
-    def __init__(self, sf_dir, bup_dir, sm_stl_dir=None, ns_stl_dir=None, mesh_type="sm"):
-        self.sf_dir = sf_dir
+    def __init__(self, sf_dir, bup_dir, stl_dir):
+        self.sf_dir  = sf_dir
         self.bup_dir = bup_dir
-        self.sm_stl_dir = sm_stl_dir
-        self.ns_stl_dir = ns_stl_dir
-        self.mesh_type = mesh_type
-
-        if mesh_type not in ("sm", "ns", "both"):
-            raise ValueError(f"Invalid mesh_type: {mesh_type}. Must be 'sm', 'ns', or 'both'.")
-
-        if mesh_type in ("sm", "both") and not sm_stl_dir:
-            raise ValueError("mesh_type is 'sm' or 'both' but sm_stl_dir is None.")
-        if mesh_type in ("ns", "both") and not ns_stl_dir:
-            raise ValueError("mesh_type is 'ns' or 'both' but ns_stl_dir is None.")
+        self.stl_dir = stl_dir
 
         self.files = []
         for f in os.listdir(sf_dir):
@@ -30,50 +20,49 @@ class data_prep(Dataset):
             base_name = f.replace("_sf.txt", "")
             bup_filename = f"{base_name}_bup.txt"
 
-            sm_match = []
-            ns_match = []
-            if sm_stl_dir:
-                sm_match = glob.glob(os.path.join(sm_stl_dir, f"{base_name}_a*_sm.stl"))
-            if ns_stl_dir:
-                ns_match = glob.glob(os.path.join(ns_stl_dir, f"{base_name}_a*_ns.stl"))
-
-            # Determine if appropriate STL files exist
-            if mesh_type == "sm" and not sm_match:
-                continue
-            if mesh_type == "ns" and not ns_match:
-                continue
-            if mesh_type == "both" and (not sm_match or not ns_match):
-                continue
-
-            # Grab the first match for area extraction
-            area_match = sm_match or ns_match
+            # area extraction
+            area_match = []
+            if stl_dir:
+                area_match = glob.glob(os.path.join(stl_dir, f"{base_name}_a*_ns.stl"))
             if not area_match:
                 print(f"[WARNING] Could not find STL file for {base_name}")
                 continue
-
             area = re.search(r"_a([0-9.]+)", area_match[0])
             area_str = f"_a{area.group(1)}" if area else ""
 
             # Construct full file paths
             sf_path = os.path.join(sf_dir, f)
             bup_path = os.path.join(bup_dir, bup_filename)
-            sm_stl_path = os.path.join(sm_stl_dir, f"{base_name}{area_str}_sm.stl") if sm_stl_dir else None
-            ns_stl_path = os.path.join(ns_stl_dir, f"{base_name}{area_str}_ns.stl") if ns_stl_dir else None
+            stl_path = os.path.join(stl_dir, f"{base_name}{area_str}_ns.stl") if stl_dir else None
 
             # Conditional existence checks
             missing = []
             if not os.path.exists(bup_path):
                 missing.append("bup")
-            if mesh_type in ("sm", "both") and (not sm_stl_path or not os.path.exists(sm_stl_path)):
-                missing.append("sm_stl")
-            if mesh_type in ("ns", "both") and (not ns_stl_path or not os.path.exists(ns_stl_path)):
-                missing.append("ns_stl")
-
+            if not os.path.exists(stl_path):
+                missing.append("stl")
             if missing:
                 print(f"[Warning] Missing {', '.join(missing)} for {f}, skipping.")
                 continue
 
-            self.files.append((sf_path, bup_path, sm_stl_path, ns_stl_path, base_name))
+            self.files.append((sf_path, bup_path, stl_path, base_name))
+
+        # Sorted lists of all files:
+        # sf_path = sorted([f for f in os.listdir(sf_dir) if f.endswith('_sf.txt')])
+        # bup_path = sorted([f for f in os.listdir(bup_dir) if f.endswith('_bup.txt')])
+        # stl_path = sorted([f for f in os.listdir(stl_dir) if f.endswith('.stl')])
+        # base_name = sorted([f.replace("_sf.txt", "") for f in os.listdir(sf_dir) if f.endswith('_sf.txt')])
+        # self.files.append((sf_path, bup_path, stl_path, base_name))
+
+        if len(self.files) == 0:
+            print(f"[ERROR] No valid training samples found in {sf_dir}")
+        # else:
+        #     sf_path, bup_path, stl_path, base_name = self.files[0]
+        #     print(f"[DEBUG] Sample 0:")
+        #     print(f"  Scalar field: {sf_path}")
+        #     print(f"  BUP file    : {bup_path}")
+        #     print(f"  STL file    : {stl_path}")
+        #     print(f"  Base Name   : {base_name}")
 
 
     def __len__(self):
@@ -81,7 +70,7 @@ class data_prep(Dataset):
 
 
     def __getitem__(self, idx):
-        sf_path, bup_path, sm_stl_path, ns_stl_path, base_name = self.files[idx]
+        sf_path, bup_path, stl_path, base_name = self.files[idx]
 
         # Load scalar field and convert to tensor
         sf = np.loadtxt(sf_path)
@@ -95,18 +84,26 @@ class data_prep(Dataset):
         radii = np.loadtxt(bup_path)
         radii_tensor = torch.tensor(radii, dtype=torch.float32)
 
-        # Load smoothed & non-smoothed STL meshes and convert them to tensors
-        sm_mesh = trimesh.load(sm_stl_path, force='mesh')
-        ns_mesh = trimesh.load(ns_stl_path, force='mesh')
-        stl_mesh = {"smoothed": sm_mesh, "non_smoothed": ns_mesh}
+        # Load STL mesh and convert to tensor
+        stl_mesh = trimesh.load(stl_path)
         
         vertices, faces = self.mesh_to_tensor(stl_mesh)
 
-        # Parse metadata from base name
-        metadata = self.parse_metadata(base_name)
+        # Parse SINUSOIDAL metadata from base name
+        # metadata = self.parse_metadata(base_name)
+
+        # Parse REACH metadata from base name
+        metadata = self.parse_metadata_reach_based(base_name)
 
         # Package mesh as dictionary
-        mesh = {'vertices': vertices, 'faces': faces, 'smoothed': metadata["smoothed"]}
+        mesh = {'vertices': vertices, 'faces': faces}
+
+        # Debug
+        if any(x is None for x in [sf, radii, mesh, base_name]):
+            print(f"[WARNING] None value detected in __getitem__ for idx={idx}, file={base_name}")
+            return None
+        
+        print(f"[OK] Loaded sample {idx}: SF shape: {sf.shape}, BUP size: {radii.size}, STL vertices: {mesh['vertices'].shape}")
 
         return sf_tensor, radii_tensor, mesh, base_name, metadata
 
@@ -127,7 +124,7 @@ class data_prep(Dataset):
             return 0.0
 
 
-    # Parse data for 'sinusoidal' method
+    # Parse data for SINUSOIDAL method
     @staticmethod # To call parse_metadata without a full dataset object
     def parse_metadata(filename):
         """
@@ -171,25 +168,25 @@ class data_prep(Dataset):
 
 
     # Parse data for 'minimal', 'manual', 'automatic', and 'voronoi' methods
-    @staticmethod # To call parse_metadata without a full dataset object
+    @staticmethod # To call parse_metadata_reach_based without a full dataset object
     def parse_metadata_reach_based(filename):
         """
         Parse metadata from filenames generated with the 'manual' or 'automatic' reach-based methods.
         Example filenames:
             g7_lissajous_1,7,9,0,pi2,0_manual_r0.05_v40_sf.txt
-            g7_lissajous_2,3,5,0,0,pi2_automatic_its30_r0.015_0.298_v173_sf.txt
+            g7_lissajous_2,3,5,0,0,pi2_automatic_its30_r0.015_0.298_v173_bup.txt
+            g7_lissajous_3,5,8,0,pi2,0_voronoi_pts180_off0.5_r0.052_0.145_v58_a31.8_ns.stl
         """
         name = os.path.basename(filename)
-        if name.endswith(".stl"):
-            smoothed = not name.endswith("_ns.stl")  # Smoothed STL if it does NOT end in _ns.stl
 
         # Strip extensions and suffixes
-        for suffix in ["_ns.stl", "_sm.stl", "_sf.txt", "_bup.txt"]:
-            if name.endswith(suffix):
-                # name = name.replace(suffix, "")
-                name = name[:-len(suffix)]
+        core_name = name
+        for suffix in ["_ns.stl", ".stl", "_sf.txt", "_bup.txt"]:
+            if core_name.endswith(suffix):
+                # core_name = core_name.replace(suffix, "")
+                core_name = core_name[:-len(suffix)]
                 break
-        parts = name.split("_")
+        parts = core_name.split("_")
         freq_phase = parts[2].split(",") # Split the 6 comma-separated parameters into freqs and phases
 
         # Common fields
@@ -241,8 +238,12 @@ class data_prep(Dataset):
                 except ValueError:
                     continue  # Not a valid float after 'a', skip
         
-        # Finally add 'smoothed: True/False'
-        metadata["smoothed"] = smoothed
+        # Finally add 'smoothed: True/False' to STLs
+        smoothed = None # No smoothing status unless it's an STL
+        if name.endswith(".stl"):
+            smoothed = not name.endswith("_ns.stl")  # Smoothed STL if it does NOT end in _ns.stl
+        if smoothed is not None:
+            metadata["smoothed"] = smoothed
 
         return metadata
 

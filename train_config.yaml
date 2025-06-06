@@ -1,8 +1,8 @@
-alpha_geom: 1.5
+alpha_geom: 2.0
 batch_size: 3
 bup_dir: C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10/500pts/v40/
-epochs: 30
-lr: 0.0001
+epochs: 50
+lr: 0.0002
 sf_dir: C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10/500pts/v40/
 stl_dir: C:/Users/rodri/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/rodrigofritz/f10/500pts/v40/
 val_fraction: 0.25

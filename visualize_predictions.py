@@ -9,6 +9,10 @@ import json
 import yaml
 import os
 
+
+# COMPARE THIS WITH eval_pred.py
+
+
 # === PATHS ===
 # Save Folder
 predictions_dir = 'Predictions'

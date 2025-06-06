@@ -10,9 +10,9 @@ python training/train_ReachNet.py ^
     --bup_dir "%data%" ^
     --stl_dir "%data%" ^
     --val_fraction 0.25 ^
-    --epochs 30 ^
+    --epochs 50 ^
     --batch_size 3 ^
-    --lr 1e-4 ^
-    --alpha_geom 1.5
+    --lr 2e-4 ^
+    --alpha_geom 2.0
 REM "pause" triggers "Press any key to continue . . . " to check outputs & errors
 REM pause

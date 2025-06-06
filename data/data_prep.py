@@ -87,7 +87,7 @@ class data_prep(Dataset):
         # Load STL mesh and convert to tensor
         stl_mesh = trimesh.load(stl_path)
         
-        vertices, faces = self.mesh_to_tensor(stl_mesh)
+        vertices, faces, smoothed = self.mesh_to_tensor(stl_mesh)
 
         # Parse SINUSOIDAL metadata from base name
         # metadata = self.parse_metadata(base_name)
@@ -96,7 +96,7 @@ class data_prep(Dataset):
         metadata = self.parse_metadata_reach_based(base_name)
 
         # Package mesh as dictionary
-        mesh = {'vertices': vertices, 'faces': faces}
+        mesh = {'vertices': vertices, 'faces': faces, 'smoothed': smoothed}
 
         # Debug
         if any(x is None for x in [sf, radii, mesh, base_name]):
@@ -253,4 +253,5 @@ class data_prep(Dataset):
         """Convert a Trimesh object to a tensor representation."""
         vertices = torch.tensor(mesh.vertices, dtype=torch.float32)  # (V, 3) shape
         faces = torch.tensor(mesh.faces, dtype=torch.int64)  # (F, 3) shape
-        return vertices, faces
+        smoothed = bool(mesh.smoothed)
+        return vertices, faces, smoothed

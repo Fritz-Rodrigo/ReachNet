@@ -103,7 +103,8 @@ class data_prep(Dataset):
             print(f"[WARNING] None value detected in __getitem__ for idx={idx}, file={base_name}")
             return None
         
-        print(f"[OK] Loaded sample {idx}: SF shape: {sf.shape}, BUP size: {radii.size}, STL vertices: {mesh['vertices'].shape}")
+        # Verify info of loaded files
+        # print(f"[OK] Loaded sample {idx}: SF shape: {sf.shape}, BUP size: {radii.size}, STL vertices: {mesh['vertices'].shape}")
 
         return sf_tensor, radii_tensor, mesh, base_name, metadata
 

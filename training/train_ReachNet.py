@@ -8,27 +8,28 @@ import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 import argparse
+import yaml
 
 from models.ReachNet import ReachNet
 from data.data_prep import data_prep
 from training.geometric_losses import area_loss
 
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-SPLIT_INDICES_FILE = "split_indices.json"
+SPLIT_INDICES_FILE = 'split_indices.json'
 
 def save_split_indices(train_indices, val_indices):
-    data = {"train": train_indices, "val": val_indices}
-    with open(SPLIT_INDICES_FILE, "w") as f:
+    data = {'train': train_indices, 'val': val_indices}
+    with open(SPLIT_INDICES_FILE, 'w') as f:
         json.dump(data, f)
-    print(f"✅ Saved split indices to {SPLIT_INDICES_FILE}")
+    print(f'✅ Saved split indices to {SPLIT_INDICES_FILE}')
 
 def load_split_indices():
     if os.path.exists(SPLIT_INDICES_FILE):
-        with open(SPLIT_INDICES_FILE, "r") as f:
+        with open(SPLIT_INDICES_FILE, 'r') as f:
             data = json.load(f)
-        return data["train"], data["val"]
+        return data['train'], data['val']
     return None, None
 
 
@@ -47,7 +48,7 @@ def train_model(sf_path, bup_path, stl_path,
         if f.endswith('_bup.txt')
     ])
     if not bup_files:
-        raise ValueError(f"No '*_bup.txt' files found in {bup_path}.")
+        raise ValueError(f'No "*_bup.txt" files found in {bup_path}.')
     # Try reading the first valid bup file
     for f in bup_files:
         path_bup = os.path.join(bup_path, f)
@@ -55,16 +56,16 @@ def train_model(sf_path, bup_path, stl_path,
             sample_bup = np.loadtxt(path_bup)
             break  # Success! No need to check more files.
         except Exception as e:
-            print(f"Failed to read {f}: {e}")
+            print(f'Failed to read {f}: {e}')
     else:
-        raise ValueError("All '*_bup.txt' files failed to load. Check encoding or file content.")
+        raise ValueError('All "*_bup.txt" files failed to load. Check encoding or file content.')
     output_size = sample_bup.shape[0]
     
     now = datetime.now()
-    print("Started at:", now)
-    print("\nReachNet is trained with radii profiles & scalar fields to generate a new radii profile (blow-up file).")
-    print("Each prediction corresponds to radii approximating the reach of the surfaces.")
-    print(f"\nOutput size (curve points): {output_size}")
+    print('Started at:', now)
+    print('\nReachNet is trained with radii profiles & scalar fields to generate a new radii profile (blow-up file).')
+    print('Each prediction corresponds to radii approximating the reach of the surfaces.')
+    print(f'\nOutput size (curve points): {output_size}')
 
     # Load dataset
     full_dataset = data_prep(sf_path, bup_path, stl_path)
@@ -81,7 +82,7 @@ def train_model(sf_path, bup_path, stl_path,
         val_indices = indices[train_size:]
         save_split_indices(train_indices, val_indices)
     else:
-        print(f"📂 Loaded split indices from {SPLIT_INDICES_FILE}")
+        print(f'📂 Loaded split indices from {SPLIT_INDICES_FILE}')
 
     train_ds = Subset(full_dataset, train_indices)
     val_ds = Subset(full_dataset, val_indices)
@@ -89,12 +90,12 @@ def train_model(sf_path, bup_path, stl_path,
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
 
-    print(f"📊 Training on {len(train_ds)} samples, validating on {len(val_ds)} samples.")
+    print(f'📊 Training on {len(train_ds)} samples, validating on {len(val_ds)} samples.')
 
     # Setup model, loss, optimizer
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = ReachNet(output_size).to(device)
-    print(f"🖥 Using device: {device}")
+    print(f'🖥  Using device: {device}\n')
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -114,13 +115,13 @@ def train_model(sf_path, bup_path, stl_path,
         # Save intermediate predictions with identifiable names
         for idx, batch in enumerate(train_loader):
             if batch is None:
-                print(f"[TRAINING WARNING] Skipping batch {idx} because it's None")
+                print(f'[TRAINING WARNING] Skipping batch {idx} because it is None')
                 continue
             try:
                 sf, bup, mesh, fname, metadata = batch
                 # Print metadata for each file
-                for i in range(len(metadata)):
-                    print(f'Metadata {i}: {metadata[i]}')
+                # for i in range(len(metadata)):
+                #     print(f'Metadata {i}: {metadata[i]}')
                 sf, bup = sf.to(device).float(), bup.to(device).float()
                 optimizer.zero_grad()
                 preds = model(sf)
@@ -132,7 +133,7 @@ def train_model(sf_path, bup_path, stl_path,
                 torch.cuda.empty_cache()
                 train_loss += total_loss.item()
             except Exception as e:
-                print(f"[ERROR] Training error at batch {idx} ({fname if 'fname' in locals() else 'unknown'})")
+                print(f'[ERROR] Training error at batch {idx} ({fname if "fname" in locals() else "unknown"})')
                 import traceback
                 traceback.print_exc()
 
@@ -148,18 +149,18 @@ def train_model(sf_path, bup_path, stl_path,
         with torch.no_grad():
             for idx, batch in enumerate(val_loader):
                 if batch is None:
-                    print(f"[VALIDATION WARNING] Skipping batch {idx} because it's None")
+                    print(f'[VALIDATION WARNING] Skipping batch {idx} because it is None')
                     continue
                 try:
-                    for sf, bup, mesh, *_ in val_loader:
-                        sf, bup = sf.to(device).float(), bup.to(device).float()
-                        preds = model(sf)
-                        mse_loss = criterion(preds, bup)
-                        geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
-                        total_loss = mse_loss + alpha_geom * geom_loss
-                        val_loss += total_loss.item()
+                    sf, bup, mesh, *_ = batch
+                    sf, bup = sf.to(device).float(), bup.to(device).float()
+                    preds = model(sf)
+                    mse_loss = criterion(preds, bup)
+                    geom_loss = area_loss(mesh, preds.cpu().detach().numpy(), bup.cpu().numpy())
+                    total_loss = mse_loss + alpha_geom * geom_loss
+                    val_loss += total_loss.item()
                 except Exception as e:
-                    print(f"[ERROR] Validation error at batch {idx} ({fname if 'fname' in locals() else 'unknown'})")
+                    print(f'[ERROR] Validation error at batch {idx} ({fname if "fname" in locals() else "unknown"})')
                     import traceback
                     traceback.print_exc()
 
@@ -167,26 +168,15 @@ def train_model(sf_path, bup_path, stl_path,
         val_rmse = np.sqrt(val_mse)
         val_rmse_list.append(val_rmse)
 
-        print(f"📈 Epoch {epoch+1}/{epochs}  "
-              f"Train RMSE: {train_rmse:.3e}  "
-              f"Val RMSE: {val_rmse:.3e}")
-
-    save_name = "trained_ReachNet.pth"
-    torch.save(model.state_dict(), save_name)
-    print(f"💾 Saved {save_name}")
-    
-    now = datetime.now()
-    print("Ended at:", now)
-
-    # Save directory
-    plot_dir = "./"
-    os.makedirs(plot_dir, exist_ok=True)
-    plot_filename = os.path.join(plot_dir, "train_val.png")
+        print(f'Epoch {epoch+1:02}/{epochs}   Train RMSE: {train_rmse:.3e}   Val RMSE: {val_rmse:.3e}')
 
     # Plot training and validation RMSE
+    plot_dir = './'
+    os.makedirs(plot_dir, exist_ok=True)
+    plot_filename = os.path.join(plot_dir, f'train_val_ep{epochs}_geo{alpha_geom}_lr{lr}.png')
     plt.figure(figsize=(10, 5))
-    plt.plot(range(epochs), train_rmse_list, label='Train RMSE', color='blue', marker='o')
-    plt.plot(range(epochs), val_rmse_list, label='Validation RMSE', color='orange', marker='o')
+    plt.plot(range(epochs), train_rmse_list, label='Train RMSE', marker='o')
+    plt.plot(range(epochs), val_rmse_list, label='Validation RMSE', marker='o')
     plt.xlabel('Epoch')
     plt.ylabel('RMSE')
     plt.title('Training and Validation RMSE')
@@ -194,22 +184,30 @@ def train_model(sf_path, bup_path, stl_path,
     plt.tight_layout()
     plt.savefig(plot_filename)
     plt.close()
+    print(f'\n📈 Saved RMSE plot to "{plot_filename}"\n')
 
-    print(f"✅ Saved RMSE plot to '{plot_filename}'")
+    # ReachNet Model saving
+    save_name = f'ReachNet_{epochs}epochs.pth'
+    torch.save(model.state_dict(), save_name)
+    print(f'💾 Saved {save_name}\n')
+
+    now = datetime.now()
+    print(f'Ended at: {now}\n')
 
 
 # ---------- ARGPARSE ----------
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train ReachNet with geometric losses")
-    parser.add_argument("--sf_dir", required=True, help="Path to scalar fields")
-    parser.add_argument("--bup_dir", required=True, help="Path to blow-up radii")
-    parser.add_argument("--stl_dir", required=True, help="Path to STLs")
-    parser.add_argument("--val_fraction", type=float, default=0.2, help="Validation Fraction")
-    parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
-    parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
-    parser.add_argument("--alpha_geom", type=float, default=1.0, help="Weight for geometric loss (surface area)")
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Train ReachNet with geometric losses')
+    parser.add_argument('--sf_dir', required=True, help='Path to scalar fields')
+    parser.add_argument('--bup_dir', required=True, help='Path to blow-up radii')
+    parser.add_argument('--stl_dir', required=True, help='Path to STLs')
+    parser.add_argument('--val_fraction', type=float, default=0.2, help='Validation Fraction')
+    parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
+    parser.add_argument('--batch_size', type=int, default=2, help='Batch size')
+    parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
+    parser.add_argument('--alpha_geom', type=float, default=1.0, help='Weight for geometric loss (surface area)')
     args = parser.parse_args()
 
     train_model(
@@ -222,3 +220,8 @@ if __name__ == "__main__":
         lr=args.lr,
         alpha_geom=args.alpha_geom
     )
+
+    # Save config to YAML
+    config_dict = vars(args)  # converts Namespace to dict
+    with open('train_config.yaml', 'w') as f:
+        yaml.dump(config_dict, f, default_flow_style=False)
